@@ -1,23 +1,93 @@
+# Main Entrypoint & Execution Loop Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Implement `cmd/netmon/main.go` to wire all components together into the main execution loop with signal handling, hourly speedtest/scan cycles, mini status reports, and 4-hourly AI-generated reports with graph image uploads.
+
+**Architecture:** A standalone Go CLI binary entrypoint that loads `config`, initializes `db`, `ai`, `telegram`, and `runner` (or `speedtest` + `scanner`), and executes an hourly loop managed via Go `context` and `time.Ticker` for clean signal shutdown.
+
+**Tech Stack:** Go stdlib (`context`, `flag`, `fmt`, `log`, `os`, `os/signal`, `strings`, `syscall`, `time`), `github.com/vernak2539/netmon-go/internal/...`.
+
+## Global Constraints
+
+- Must match Python `main.py` logic, status texts, prompt constants, and HTML formatting verbatim.
+- Strip all `<br>`, `<br/>`, `<br />` tags from AI response using `strings.ReplaceAll`.
+- Support graceful shutdown on `SIGINT` / `SIGTERM` using `signal.NotifyContext`.
+- Verify build: `go build -o netmon ./cmd/netmon`.
+
+---
+
+## Proposed File Structure
+
+- Create: `cmd/netmon/main.go` — Main entrypoint
+- Create: `cmd/netmon/main_test.go` — Unit test verifying report text formatting and status text determination
+
+---
+
+### Task 1: Implement Report Formatting & Helper Logic (`cmd/netmon`)
+
+**Files:**
+- Create: `cmd/netmon/main.go`
+- Test: `cmd/netmon/main_test.go`
+
+**Interfaces:**
+- Consumes: `models.NetworkMetric`, `models.NetworkDevice`
+- Produces: `determineStatusText(dlSpeed, ping float64) string`, `formatMiniReport(...) string`, `formatUserReportItem(...) string`
+
+- [ ] **Step 1: Write failing tests for status text and report formatters**
+
+```go
 package main
 
 import (
-	"context"
+	"testing"
+)
+
+func TestDetermineStatusText(t *testing.T) {
+	t.Run("Good speed and low latency", func(t *testing.T) {
+		status := determineStatusText(160.0, 15.0)
+		if status != "Good speed and low latency" {
+			t.Errorf("expected Good speed..., got %s", status)
+		}
+	})
+
+	t.Run("Bad speed or high latency", func(t *testing.T) {
+		status := determineStatusText(40.0, 15.0)
+		if status != "A bunch of idiots decided to stream 4K movies all at once, or the ISP's mice were busy chewing on the fiber line again, whatever" {
+			t.Errorf("unexpected status: %s", status)
+		}
+
+		statusPing := determineStatusText(100.0, 50.0)
+		if statusPing != "A bunch of idiots decided to stream 4K movies all at once, or the ISP's mice were busy chewing on the fiber line again, whatever" {
+			t.Errorf("unexpected status: %s", statusPing)
+		}
+	})
+
+	t.Run("Average speed fallback", func(t *testing.T) {
+		status := determineStatusText(100.0, 30.0)
+		if status != "At least it works, I guess" {
+			t.Errorf("expected 'At least it works, I guess', got %s", status)
+		}
+	})
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `go test -v ./cmd/netmon/...`
+Expected: FAIL with "determineStatusText undefined"
+
+- [ ] **Step 3: Implement `determineStatusText` and string formatters in `cmd/netmon/main.go`**
+
+```go
+package main
+
+import (
 	"fmt"
-	"log"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
-	"github.com/vernak2539/netmon-go/internal/ai"
-	"github.com/vernak2539/netmon-go/internal/config"
-	"github.com/vernak2539/netmon-go/internal/db"
-	"github.com/vernak2539/netmon-go/internal/graphs"
 	"github.com/vernak2539/netmon-go/internal/models"
-	"github.com/vernak2539/netmon-go/internal/scanner"
-	"github.com/vernak2539/netmon-go/internal/speedtest"
-	"github.com/vernak2539/netmon-go/internal/telegram"
 )
 
 const ReportSystemPrompt = `You are a sarcastic, cynical network analyst bot. Your job is to output a short network speed test and 24-hour trend report in Telegram HTML format.
@@ -92,7 +162,7 @@ CRITICAL RULES:
 4. Do NOT write any description text below the "Data Transfer (Latest Test)" pre-block.
 5. Keep the "Conclusion" to exactly 1 short sentence.
 6. Highlight all numeric metric values in the text using <code>[Value]</code>.
-7. Do NOT output any markdown blocks like ` + "`" + "`" + "`" + `html. Output raw HTML tags directly.
+7. Do NOT output any markdown blocks like ```html. Output raw HTML tags directly.
 8. Make sure all HTML tags are closed correctly.
 9. Be sarcastic, informal, and funny when describing performance dips or network load.
 10. The entire output MUST be under 800 characters to ensure it easily fits within Telegram limits.`
@@ -163,6 +233,55 @@ func formatMiniReport(m *models.NetworkMetric, deviceCount int) string {
 		statusText,
 	)
 }
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `go test -v ./cmd/netmon/...`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add cmd/netmon/
+git commit -m "feat: add report templates and status text logic"
+```
+
+---
+
+### Task 2: Implement Main Loop & Signal Handling (`cmd/netmon`)
+
+**Files:**
+- Modify: `cmd/netmon/main.go`
+
+**Interfaces:**
+- Consumes: `config.Load()`, `db.Open()`, `ai.New()`, `telegram.New()`, `speedtest.New()`, `scanner.New()`, `graphs.Plot()`
+- Produces: `main()` binary entrypoint
+
+- [ ] **Step 1: Implement `main()` function in `cmd/netmon/main.go`**
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/vernak2539/netmon-go/internal/ai"
+	"github.com/vernak2539/netmon-go/internal/config"
+	"github.com/vernak2539/netmon-go/internal/db"
+	"github.com/vernak2539/netmon-go/internal/graphs"
+	"github.com/vernak2539/netmon-go/internal/models"
+	"github.com/vernak2539/netmon-go/internal/scanner"
+	"github.com/vernak2539/netmon-go/internal/speedtest"
+	"github.com/vernak2539/netmon-go/internal/telegram"
+)
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
@@ -323,3 +442,16 @@ func main() {
 		}
 	}
 }
+```
+
+- [ ] **Step 2: Test building the binary**
+
+Run: `make build`
+Expected: Successfully compiles binary `netmon`
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add cmd/netmon/
+git commit -m "feat: implement main entrypoint and hourly execution loop"
+```
