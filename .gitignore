@@ -7,6 +7,6 @@ __pycache__/
 pyrightconfig.json
 
 # Go build artifacts
-netmon
+/netmon
 netmon-linux-*
 netmon-darwin-*
