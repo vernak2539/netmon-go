@@ -10,16 +10,14 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-8bc34a?style=for-the-badge" alt="License MIT"></a>
-  <img src="https://img.shields.io/badge/Python-3.13+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/uv-managed-DE5FE9?style=for-the-badge&logo=uv&logoColor=white" alt="uv">
+  <img src="https://img.shields.io/badge/Go-1.23+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/Telegram-Bot_API-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram">
   <img src="https://img.shields.io/badge/SQLite-Storage-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
-  <img src="https://img.shields.io/badge/Matplotlib-Graphs-11557c?style=for-the-badge" alt="Matplotlib">
 </p>
 
 ---
 
-A lightweight local bot that runs a speed test on your network every hour, scans active devices on your LAN using `nmap`, and logs everything to a local SQLite database. 
+A lightweight local bot that runs a speed test on your network every hour, scans active devices on your LAN using `nmap`, and logs everything to a local SQLite database.
 
 Every 4 hours, it delivers a **detailed report** complete with a 24-hour trend graph and a sarcastic, LLM-generated commentary on your network's behavior (*"someone's hogging the bandwidth again"*).
 
@@ -28,15 +26,33 @@ Every 4 hours, it delivers a **detailed report** complete with a 24-hour trend g
 
 ---
 
+## Why Go?
+
+This project was originally written in Python and has been rewritten in Go for several key advantages:
+
+| | Python | Go |
+| :--- | :--- | :--- |
+| **Deployment** | Requires Python 3.13+, `uv`, virtualenv | Single static binary — just copy and run |
+| **Memory** | ~50-80 MB (interpreter + dependencies) | ~10-15 MB |
+| **Startup** | ~1-2s (interpreter + imports) | Instant |
+| **Cross-compile** | Complex (wheels, platform deps) | `GOOS=linux GOARCH=arm64 go build` |
+| **Dependencies** | pip/uv managed, virtualenv required | Vendored in binary, zero runtime deps |
+| **Raspberry Pi** | Needs Python installed + venv setup | Copy one binary, done |
+
+> [!TIP]
+> **Looking for the Python version?** It lives on the [`main` branch](https://github.com/vernak2539/netmon-go/tree/main) and continues to receive updates.
+
+---
+
 ## Features & Workflow
 
-Every hour (`SLEEP_TIME` in `main.py`, default 3600 seconds):
+Every hour (`sleepTime` in `main.go`, default 3600 seconds):
 
 1. **Speed Test:** Measures download/upload speeds, ping latency, ISP, and test server details using `speedtest-cli`.
 2. **LAN Scan:** Scans the local subnet using `nmap` ARP scan to count active connected devices.
 3. **Local Storage:** Saves metrics & device tallies directly to a local `metrics.sql` SQLite database.
 4. **Status Alert:** Sends a concise status update to Telegram (*"all good"* or *"line is dying"*).
-5. **24h AI Report:** Every 4th cycle (every 4h), generates a **24-hour trend graph** via `matplotlib` alongside a sarcastic LLM analysis of network load and speed fluctuations.
+5. **24h AI Report:** Every 4th cycle (every 4h), generates a **24-hour trend graph** alongside a sarcastic LLM analysis of network load and speed fluctuations.
 
 ---
 
@@ -44,20 +60,20 @@ Every hour (`SLEEP_TIME` in `main.py`, default 3600 seconds):
 
 | Technology | Purpose |
 | :--- | :--- |
-| **Python 3.13+** (via `uv`) | Core runtime |
-| **SQLite** | Local metrics persistence (`metrics.sql`) |
+| **Go 1.23+** | Core runtime |
+| **SQLite** (`modernc.org/sqlite`) | Local metrics persistence (`metrics.sql`) — pure Go, no cgo |
 | **`speedtest-cli`** | Network bandwidth and ping measurements |
 | **`nmap`** | Subnet ARP scanning for device discovery |
-| **`matplotlib`** | 24-hour metrics visualization |
-| **OpenAI-compatible API** | Sarcastic report & trend analysis (cloud OpenAI or a local LLM) |
-| **Telegram API** | Alert and graph report delivery |
+| **`go-analyze/charts`** | 24-hour metrics visualization (pure Go PNG rendering) |
+| **OpenAI-compatible API** (`sashabaranov/go-openai`) | Sarcastic report & trend analysis |
+| **Telegram Bot API** | Alert and graph report delivery |
 
 ---
 
 ## Requirements
 
 * **OS:** macOS or Linux (`nmap --iflist` required; Windows not supported out of the box).
-* **[uv](https://docs.astral.sh/uv/)** — manages the Python version, virtualenv, and locked dependencies for you. No manual `python3`/`venv`/`pip` juggling.
+* **Go 1.23+** — only needed to build from source. Pre-built binaries are available on the [Releases](https://github.com/vernak2539/netmon-go/releases) page.
 * **System Binaries:** `nmap` and `speedtest-cli` installed system-wide.
 * **Passwordless `sudo` for `nmap`** — device counting needs a real ARP scan (raw sockets), which requires root; see one-time setup below.
 * **Tokens:** Telegram Bot Token, Telegram Chat ID, and an API key for your OpenAI-compatible provider (not needed if you point `AI_BASE_URL` at a local LLM server).
@@ -89,23 +105,27 @@ sudo chmod 440 /etc/sudoers.d/netmon-nmap
 
 This grants passwordless `sudo` only for the `nmap` binary — not your whole account.
 
-### 3. Clone & Setup Environment
+### 3. Install
 
-Install [`uv`](https://docs.astral.sh/uv/) if you don't have it yet:
+**Option A: Download a pre-built binary** (recommended)
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-Then:
+Download the latest release for your platform from the [Releases](https://github.com/vernak2539/netmon-go/releases) page:
 
 ```bash
-git clone https://github.com/Role1776/netmon.git
-cd netmon
-uv sync
+# Example for Linux ARM64 (Raspberry Pi)
+curl -LO https://github.com/vernak2539/netmon-go/releases/latest/download/netmon-linux-arm64
+chmod +x netmon-linux-arm64
+mv netmon-linux-arm64 /usr/local/bin/netmon
 ```
 
-`uv sync` downloads the pinned Python version (see `.python-version`) if you don't already have it, creates `.venv`, and installs the exact locked dependency versions from `uv.lock`. No system `python3`, no manual venv activation.
+**Option B: Build from source**
+
+```bash
+git clone https://github.com/vernak2539/netmon-go.git
+cd netmon-go
+git checkout main-go
+go build -o netmon ./cmd/netmon
+```
 
 ### 4. Configure `.env`
 
@@ -127,15 +147,19 @@ cp .env.example .env
 | `DB_PATH` | SQLite database file path (e.g. `metrics.sql`) |
 
 > [!TIP]
-> **You're not locked into OpenAI.** `ai.py` talks to any OpenAI-compatible endpoint, so a local inference server (e.g. [Ollama](https://ollama.com), LM Studio) works too — just point `AI_BASE_URL` at it. For report quality that holds up, use a model with **at least ~7B parameters**; a solid local pick is **Gemma 4 12B at 4-bit (QAT) quantization** (`gemma4:12b-it-qat` via Ollama), which fits comfortably on 16GB of RAM.
+> **You're not locked into OpenAI.** The AI client talks to any OpenAI-compatible endpoint, so a local inference server (e.g. [Ollama](https://ollama.com), LM Studio) works too — just point `AI_BASE_URL` at it.
 
 ### 5. Run the Bot
 
 ```bash
-uv run main.py
+./netmon
 ```
 
-`uv run` always uses this project's own `.venv` and pinned Python version, so it can't accidentally run against your system `python3`.
+Or with a custom env file:
+
+```bash
+./netmon --env /path/to/my.env
+```
 
 > [!TIP]
 > Run the bot inside `tmux`/`screen` or set it up as a system service (`systemd`/`launchd`) to keep it running 24/7 in the background.
@@ -163,7 +187,7 @@ Current status: Good speed and low latency
 
 ### 4-Hour Detailed Report (With Graph & AI Analysis)
 
-Every 4 hours, the bot sends a **24-hour matplotlib graph** accompanied by a sarcastic LLM-generated report:
+Every 4 hours, the bot sends a **24-hour graph** accompanied by a sarcastic LLM-generated report:
 
 <p align="center">
   <img src="assets/example_graph.png" alt="24h Network Speed Test Graph" width="650" />
@@ -201,20 +225,23 @@ Expect periodic speed drops whenever local freeloaders stream 4K movies or the I
 ## Project Structure
 
 ```text
-netmon/
-├── assets/         # Logo & documentation media assets
-├── graphs/         # Generated 24h matplotlib graph images
-├── main.py         # Main execution loop & orchestrator
-├── runner.py       # Speedtest-cli and nmap scan execution & parsing
-├── sqlite.py       # SQLite database operations & schema management
-├── models.py       # Domain data models (NetworkMetric, SpeedTest)
-├── graphs.py       # Matplotlib graph rendering engine
-├── ai.py           # OpenAI API client & sarcastic text generator
-├── tg.py           # Telegram bot dispatch helper
-├── config.py       # Environment variable validation & config
-├── pyproject.toml  # Project metadata & dependencies
-├── uv.lock         # Locked, reproducible dependency versions
-└── LICENSE         # MIT License file
+netmon-go/
+├── .github/workflows/  # CI (build+test) and Release (cross-compile) workflows
+├── cmd/netmon/         # Go entrypoint (main.go)
+├── internal/           # Go internal packages
+│   ├── ai/             # OpenAI-compatible LLM client
+│   ├── config/         # Environment config loader
+│   ├── db/             # SQLite database layer
+│   ├── graphs/         # Chart rendering (PNG)
+│   ├── models/         # Domain data models
+│   ├── runner/         # Speedtest + nmap execution
+│   └── telegram/       # Telegram bot dispatch
+├── assets/             # Logo & documentation media
+├── graphs/             # Generated 24h graph images
+├── .env.example        # Environment variable template
+├── go.mod              # Go module definition
+├── go.sum              # Dependency checksums
+└── LICENSE             # MIT License
 ```
 
 ---
