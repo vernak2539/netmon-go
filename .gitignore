@@ -5,3 +5,8 @@ __pycache__/
 .venv/
 .vscode/
 pyrightconfig.json
+
+# Go build artifacts
+netmon
+netmon-linux-*
+netmon-darwin-*
