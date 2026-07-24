@@ -1,7 +1,7 @@
 .PHONY: all build lint test clean
 
 # Binary name
-BINARY_NAME=netmon
+BINARY_NAME=netmon-go
 
 all: build
 
