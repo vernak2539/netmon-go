@@ -54,7 +54,7 @@ This project was originally written in Python and has been rewritten in Go for s
 
 Every hour (`sleepTime` in `main.go`, default 3600 seconds):
 
-1. **Speed Test:** Measures download/upload speeds, ping latency, ISP, and test server details using `speedtest-cli`.
+1. **Speed Test:** Measures download/upload speeds, ping latency, ISP, and test server details using native Go `speedtest-go`.
 2. **LAN Scan:** Scans the local subnet using `nmap` ARP scan to count active connected devices.
 3. **Local Storage:** Saves metrics & device tallies directly to a local `metrics.sql` SQLite database.
 4. **Status Alert:** Sends a concise status update to Telegram (*"all good"* or *"line is dying"*).
@@ -68,7 +68,7 @@ Every hour (`sleepTime` in `main.go`, default 3600 seconds):
 | :--- | :--- |
 | **Go 1.23+** | Core runtime |
 | **SQLite** (`modernc.org/sqlite`) | Local metrics persistence (`metrics.sql`) — pure Go, no cgo |
-| **`speedtest-cli`** | Network bandwidth and ping measurements |
+| **`speedtest-go`** (`showwin/speedtest-go`) | Network bandwidth and ping measurements (pure Go, zero binary deps) |
 | **`nmap`** | Subnet ARP scanning for device discovery |
 | **`go-analyze/charts`** | 24-hour metrics visualization (pure Go PNG rendering) |
 | **OpenAI-compatible API** (`sashabaranov/go-openai`) | Sarcastic report & trend analysis |
@@ -80,7 +80,7 @@ Every hour (`sleepTime` in `main.go`, default 3600 seconds):
 
 * **OS:** macOS or Linux (`nmap --iflist` required; Windows not supported out of the box).
 * **Go 1.23+** — only needed to build from source. Pre-built binaries are available on the [Releases](https://github.com/vernak2539/netmon-go/releases) page.
-* **System Binaries:** `nmap` and `speedtest-cli` installed system-wide.
+* **System Binaries:** `nmap` installed system-wide.
 * **Passwordless `sudo` for `nmap`** — device counting needs a real ARP scan (raw sockets), which requires root; see one-time setup below.
 * **Tokens:** Telegram Bot Token, Telegram Chat ID, and an API key for your OpenAI-compatible provider (not needed if you point `AI_BASE_URL` at a local LLM server).
 
@@ -92,12 +92,12 @@ Every hour (`sleepTime` in `main.go`, default 3600 seconds):
 
 **macOS (Homebrew):**
 ```bash
-brew install nmap speedtest-cli
+brew install nmap
 ```
 
 **Linux (Debian/Ubuntu):**
 ```bash
-sudo apt update && sudo apt install -y nmap speedtest-cli
+sudo apt update && sudo apt install -y nmap
 ```
 
 ### 2. Allow Passwordless `nmap` (one-time)
