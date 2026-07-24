@@ -31,6 +31,10 @@ if git ls-remote --tags origin | grep -q "refs/tags/$VERSION$"; then
   exit 1
 fi
 
+echo "Running tests and linter before release..."
+go vet ./...
+go test -v -race ./...
+
 echo "Creating release tag '$VERSION'..."
 git tag -a "$VERSION" -m "Release $VERSION"
 

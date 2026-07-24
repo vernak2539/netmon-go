@@ -6,8 +6,27 @@ on:
       - "v*"
 
 jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Vet code
+        run: go vet ./...
+
+      - name: Run tests with race detector
+        run: go test -v -race ./...
+
   build-binaries:
     name: Build Multi-Platform Binary
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       matrix:
