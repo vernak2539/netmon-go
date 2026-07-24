@@ -1,12 +1,14 @@
 .env
 metrics.sql
-__pycache__/
-*.pyc
-.venv/
+*.db
+*.sqlite
 .vscode/
-pyrightconfig.json
+.DS_Store
 
 # Go build artifacts
 /netmon
+/netmon-go
 netmon-linux-*
 netmon-darwin-*
+netmon-go-linux-*
+netmon-go-darwin-*
