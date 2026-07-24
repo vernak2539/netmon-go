@@ -130,7 +130,7 @@ mv netmon-linux-arm64 /usr/local/bin/netmon
 git clone https://github.com/vernak2539/netmon-go.git
 cd netmon-go
 git checkout main-go
-go build -o netmon ./cmd/netmon
+make build
 ```
 
 ### 4. Configure `.env`
