@@ -26,6 +26,12 @@ Every 4 hours, it delivers a **detailed report** complete with a 24-hour trend g
 
 ---
 
+## Acknowledgements
+
+This project is a Go rewrite of [**netmon**](https://github.com/Role1776/netmon) by [@Role1776](https://github.com/Role1776), originally written in Python. All credit for the original concept, design, and architecture goes to the original author.
+
+---
+
 ## Why Go?
 
 This project was originally written in Python and has been rewritten in Go for several key advantages:
@@ -249,9 +255,3 @@ netmon-go/
 ## License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more details.
-
----
-
-## Acknowledgements
-
-This project is a Go rewrite of [**netmon**](https://github.com/Role1776/netmon) by [@Role1776](https://github.com/Role1776), originally written in Python. All credit for the original concept, design, and architecture goes to the original author.
