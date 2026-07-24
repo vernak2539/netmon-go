@@ -98,3 +98,38 @@ Example command:
 ```bash
 gh project item-edit --id <ITEM_ID> --project-id PVT_kwHOAAf0Ns4BeScO --field-id PVTSSF_lAHOAAf0Ns4BeScOzhYtzO0 --single-select-option-id <OPTION_ID>
 ```
+
+---
+
+## 6. AI-Assisted Feature Development & Superpowers Workflow
+
+AI agents working on new features, refactoring, or bug fixes MUST follow this systematic lifecycle combining GitHub Project #3 automation and Superpowers skills:
+
+### Step 1: Issue & Project Board Setup
+1. Identify or create the target GitHub Issue (`gh issue create --title "..." --body "..."`).
+2. Add the issue to GitHub Project #3 (`PVT_kwHOAAf0Ns4BeScO`) and set status to **In progress** (`47fc9ee4`).
+3. Create a feature branch off `main-go` named `issue-<NUMBER>-<feature>` (`git checkout -b issue-12-feature main-go`).
+
+### Step 2: Implementation Planning (Superpowers Skills)
+1. Use `writing-plans` (or `brainstorming` for design decisions) to author a comprehensive, bite-sized implementation plan.
+2. Save the plan to `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`.
+3. Plan MUST follow TDD principles (failing test -> pass test -> lint -> commit) with exact file paths and code snippets.
+
+### Step 3: Execution & Verification
+1. Execute the plan using `subagent-driven-development` (recommended for task isolation and automated review gates) or `executing-plans`.
+2. As each task finishes:
+   - Run `make test` and `make lint`.
+   - Update task checkboxes in the GitHub Issue body (`gh issue edit <NUMBER> --body "..."`).
+   - Append completed task status to the plan's ledger file (`.superpowers/sdd/<PLAN_BASENAME>/progress.md`).
+
+### Step 4: Code Review & PR Submission
+1. Complete whole-branch code review verification.
+2. Submit a Pull Request targeting `main-go` with `Resolves #<NUMBER>` in the body (`gh pr create --base main-go --title "..." --body "...")`.
+3. Update GitHub Project #3 status to **In review** (`df73e18b`).
+4. **Notify the user for PR review & approval** (do NOT merge directly).
+
+### Step 5: Post-Approval Merge & Completion
+1. Upon user approval and PR merge to `main-go`:
+2. Update GitHub Project #3 status to **Done** (`98236657`).
+3. Clean up the feature branch locally (`git checkout main-go && git pull origin main-go && git branch -d issue-<NUMBER>-<feature>`).
+
