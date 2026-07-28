@@ -111,20 +111,28 @@ sudo chmod 440 /etc/sudoers.d/netmon-nmap
 
 This grants passwordless `sudo` only for the `nmap` binary — not your whole account.
 
-### 3. Install
+### 3. Install & Automated Setup
 
-**Option A: Download a pre-built binary** (recommended)
+**Option A: 1-Line Terminal Setup (Recommended)**
+
+Run the setup script directly in your terminal to automatically detect your system architecture, install prerequisites, fetch the latest binary, interactively set up `.env`, and configure a `systemd` service:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/vernak2539/netmon-go/main-go/scripts/setup.sh | bash
+```
+
+**Option B: Download a pre-built binary manually**
 
 Download the latest release for your platform from the [Releases](https://github.com/vernak2539/netmon-go/releases) page:
 
 ```bash
 # Example for Linux ARM64 (Raspberry Pi)
-curl -LO https://github.com/vernak2539/netmon-go/releases/latest/download/netmon-linux-arm64
-chmod +x netmon-linux-arm64
-mv netmon-linux-arm64 /usr/local/bin/netmon
+curl -LO https://github.com/vernak2539/netmon-go/releases/latest/download/netmon-go-linux-arm64
+chmod +x netmon-go-linux-arm64
+mv netmon-go-linux-arm64 /usr/local/bin/netmon
 ```
 
-**Option B: Build from source**
+**Option C: Build from source**
 
 ```bash
 git clone https://github.com/vernak2539/netmon-go.git
@@ -145,11 +153,11 @@ cp .env.example .env
 
 | Variable | Description |
 | :--- | :--- |
-| `AI_API_KEY` | Your LLM provider API key (any string works for most local servers) |
+| `TG_BOT_TOKEN` | Telegram bot token from `@BotFather` (see [Bot Setup Guide](https://medium.com/@a.kotchnev/how-to-create-a-telegram-bot-in-5-minutes-botfather-2fdbf1da2627)) |
+| `TG_CHAT_ID` | Your Telegram Chat ID (see [Chat ID Guide](https://dev.to/marcotwzrd/how-to-get-a-telegram-chatid-in-2026-3-methods-that-actually-work-36g5)) |
+| `AI_API_KEY` | Your LLM provider API key (optional; any string works for local LLM servers) |
 | `AI_MODEL` | Model name (e.g. `gpt-4o-mini`, or a local model name — see below) |
 | `AI_BASE_URL` | Base API URL (e.g., `https://api.openai.com/v1`, or your local server's URL) |
-| `TG_BOT_TOKEN` | Telegram bot token from `@BotFather` |
-| `TG_CHAT_ID` | Your Telegram Chat ID |
 | `DB_PATH` | SQLite database file path (e.g. `metrics.sql`) |
 
 > [!TIP]
