@@ -1,4 +1,4 @@
-.PHONY: all build lint test clean release
+.PHONY: all build lint test clean release db-inspect
 
 # Binary name
 BINARY_NAME=netmon-go
@@ -18,9 +18,13 @@ test:
 release:
 	@./scripts/release.sh $(VERSION)
 
+db-inspect:
+	@./scripts/db-inspect.sh "$(DB_PATH)" "$(SCAN_ID)"
+
 clean:
 	go clean
 	rm -f $(BINARY_NAME)
 	rm -f $(BINARY_NAME)-linux-*
 	rm -f $(BINARY_NAME)-darwin-*
+
 
