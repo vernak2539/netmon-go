@@ -1,29 +1,31 @@
-# Walkthrough: Making AI Configuration Optional in netmon-go
+# Walkthrough: Upstream Sync Parity (17 Commits)
 
-**PR:** [https://github.com/vernak2539/netmon-go/pull/26](https://github.com/vernak2539/netmon-go/pull/26)  
-**Branch:** `issue-optional-ai` targeting `main-go`  
+**PR:** [https://github.com/vernak2539/netmon-go/pull/27](https://github.com/vernak2539/netmon-go/pull/27)  
+**Branch:** `feature/upstream-sync-parity` targeting `main-go`  
 
 ## Changes Made
 
 ### 1. `internal/config`
-- Updated `config.Load()` so that `AI_API_KEY` is no longer mandatory.
-- If `AI_API_KEY` is set, `AI_MODEL` and `AI_BASE_URL` are strictly validated as non-empty.
-- Added unit test `TestLoad/Valid_loading_without_AI_API_KEY` in `internal/config/config_test.go`.
+- Added `NOTIFIER` (`"telegram"` | `"discord"`, default `"telegram"`).
+- Added `DISCORD_WEBHOOK_URL` (mandatory if `NOTIFIER=discord`).
+- Added `REQUEST_TIMEOUT` parsed as `time.Duration` (default `30s`).
+- Unit tests added in `internal/config/config_test.go`.
 
-### 2. `internal/ai`
-- Updated `ai.New(apiKey, model, baseURL)` to return `(nil, nil)` when `apiKey` is empty.
-- Updated `TestNewValidation` and added `TestNewEmptyAPIKey` unit test in `internal/ai/ai_test.go`.
+### 2. `internal/notifier`, `internal/telegram`, `internal/discord`
+- Defined `notifier.Notifier` interface (`SendMessage`, `SendPhoto`, `SendChatAction`) and `ChatAction` constants.
+- Updated `telegram.Client` to accept `context.Context` and `notifier.ChatAction`.
+- Created `internal/discord` webhook client with JSON text delivery and multipart photo uploads.
 
-### 3. `cmd/netmon/main.go`
-- Logs `AI API key not provided; AI report generation disabled.` on startup when `aiClient == nil`.
-- On 4-hour graph report cycles, if `aiClient == nil` or if AI completion fails, falls back gracefully to formatting mini-report status text for the latest metric and sending the 24-hour graph photo upload.
-- Added automatic clean-up of temporary graph image files via `os.Remove(graphPath)`.
+### 3. `cmd/netmon` & `internal/graphs`
+- Metric timestamps use `.Local()` formatting in graph X-axis labels and report text.
+- `cmd/netmon/main.go` dynamically instantiates Discord or Telegram notifier based on `cfg.Notifier`.
+- Main execution loop wraps cycle execution with panic recovery and error logging so single-cycle failures do not crash the daemon process.
 
 ---
 
 ## Verification Results
 
 ### Automated Tests
-- Ran `make test` across all 9 packages with race detection: **PASS**
+- Ran `make test` across all packages with race detection: **PASS**
 - Ran `make lint` (`go vet` & `go fmt`): **PASS**
-- Ran `make build`: **PASS** (binary compiles cleanly with `CGO_ENABLED=0`)
+- Ran `make build`: **PASS** (compiled `netmon-go` binary cleanly with zero CGO dependencies)

@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -72,7 +73,7 @@ func TestSendMessage(t *testing.T) {
 	defer func() { http.DefaultClient.Transport = oldTransport }()
 
 	b, _ := New("token", "1234")
-	err := b.SendMessage("hello world")
+	err := b.SendMessage(context.Background(), "hello world")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -100,7 +101,7 @@ func TestSendChatAction(t *testing.T) {
 	defer func() { http.DefaultClient.Transport = oldTransport }()
 
 	b, _ := New("token", "1234")
-	err := b.SendChatAction(Typing)
+	err := b.SendChatAction(context.Background(), Typing)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestSendPhoto(t *testing.T) {
 	defer func() { http.DefaultClient.Transport = oldTransport }()
 
 	b, _ := New("token", "1234")
-	err := b.SendPhoto([]byte("fake-photo"), "caption text")
+	err := b.SendPhoto(context.Background(), []byte("fake-photo"), "caption text")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

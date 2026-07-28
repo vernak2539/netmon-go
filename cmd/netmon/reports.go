@@ -25,7 +25,7 @@ func cleanHTMLResponse(text string) string {
 }
 
 func formatMiniReport(m *models.NetworkMetric, deviceCount int) string {
-	timestampStr := m.Timestamp.Format("2006-01-02 15:04:05")
+	timestampStr := m.Timestamp.Local().Format("2006-01-02 15:04:05")
 	statusText := determineStatusText(m.Download, m.Ping)
 	bytesReceivedMB := float64(m.BytesReceived) / 1000000.0
 	bytesSentMB := float64(m.BytesSent) / 1000000.0

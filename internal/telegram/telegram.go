@@ -2,49 +2,76 @@ package telegram
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
+
+	"github.com/vernak2539/netmon-go/internal/notifier"
 )
 
-type ChatAction string
+type ChatAction = notifier.ChatAction
 
 const (
-	Typing      ChatAction = "typing"
-	UploadPhoto ChatAction = "upload_photo"
+	Typing      ChatAction = notifier.ChatActionTyping
+	UploadPhoto ChatAction = notifier.ChatActionUploadPhoto
 )
 
 type Bot struct {
-	botToken string
-	chatID   string
+	botToken   string
+	chatID     string
+	httpClient *http.Client
 }
 
+type Client = Bot
+
+var _ notifier.Notifier = (*Client)(nil)
+
 // New creates a new Telegram Bot client.
-func New(botToken, chatID string) (*Bot, error) {
+func New(botToken, chatID string, timeouts ...time.Duration) (*Bot, error) {
 	if strings.TrimSpace(botToken) == "" {
 		return nil, fmt.Errorf("bot token cannot be empty")
 	}
 	if strings.TrimSpace(chatID) == "" {
 		return nil, fmt.Errorf("chat ID cannot be empty")
 	}
+	client := http.DefaultClient
+	if len(timeouts) > 0 && timeouts[0] > 0 {
+		client = &http.Client{Timeout: timeouts[0]}
+	}
 	return &Bot{
-		botToken: botToken,
-		chatID:   chatID,
+		botToken:   botToken,
+		chatID:     chatID,
+		httpClient: client,
 	}, nil
 }
 
+func (b *Bot) getHTTPClient() *http.Client {
+	if b.httpClient != nil {
+		return b.httpClient
+	}
+	return http.DefaultClient
+}
+
 // SendMessage sends a text message with HTML parse mode to the configured chat.
-func (b *Bot) SendMessage(message string) error {
+func (b *Bot) SendMessage(ctx context.Context, message string) error {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", b.botToken)
 	data := url.Values{}
 	data.Set("chat_id", b.chatID)
 	data.Set("text", message)
 	data.Set("parse_mode", "HTML")
 
-	resp, err := http.PostForm(apiURL, data)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := b.getHTTPClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("sending request: %w", err)
 	}
@@ -59,7 +86,7 @@ func (b *Bot) SendMessage(message string) error {
 }
 
 // SendPhoto uploads a photo with a caption using multipart/form-data.
-func (b *Bot) SendPhoto(photo []byte, caption string) error {
+func (b *Bot) SendPhoto(ctx context.Context, photo []byte, caption string) error {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendPhoto", b.botToken)
 
 	body := &bytes.Buffer{}
@@ -89,13 +116,13 @@ func (b *Bot) SendPhoto(photo []byte, caption string) error {
 		return fmt.Errorf("closing multipart writer: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", apiURL, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, body)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := b.getHTTPClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("sending request: %w", err)
 	}
@@ -110,13 +137,19 @@ func (b *Bot) SendPhoto(photo []byte, caption string) error {
 }
 
 // SendChatAction sends a status indicator (typing, uploading photo) to the configured chat.
-func (b *Bot) SendChatAction(action ChatAction) error {
+func (b *Bot) SendChatAction(ctx context.Context, action notifier.ChatAction) error {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendChatAction", b.botToken)
 	data := url.Values{}
 	data.Set("chat_id", b.chatID)
 	data.Set("action", string(action))
 
-	resp, err := http.PostForm(apiURL, data)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := b.getHTTPClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("sending request: %w", err)
 	}
