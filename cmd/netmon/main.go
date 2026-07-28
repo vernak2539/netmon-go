@@ -49,6 +49,16 @@ func main() {
 		}
 	}
 
+	if cfg.TestNotify {
+		log.Printf("Sending test notification via %s...", cfg.Notifier)
+		testMsg := fmt.Sprintf("🧪 [netmon] Test notification from netmon-go using backend: %s", cfg.Notifier)
+		if err := bot.SendMessage(ctx, testMsg); err != nil {
+			log.Fatalf("Test notification failed: %v", err)
+		}
+		log.Println("Test notification delivered successfully.")
+		os.Exit(0)
+	}
+
 	database, err := db.Open(cfg.DBPath)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
