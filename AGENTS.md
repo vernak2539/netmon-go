@@ -58,6 +58,10 @@ make lint
 # Run unit tests with race detection across all packages
 make test
 
+# Inspect database metrics and device scans
+make db-inspect                        # Inspect 10 most recent speedtest metrics
+make db-inspect SCAN_ID=<device_scan_id> # Inspect devices for a specific scan ID
+
 # Tag a new release and push to remote (triggers GitHub Actions release workflow)
 make release VERSION=v1.0.0
 
