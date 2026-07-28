@@ -207,11 +207,13 @@ if [ -n "$TTY_DEV" ] || [ -t 0 ]; then
         read -r -p "Enter Telegram Chat ID (TG_CHAT_ID): " INPUT_TG_CHAT_ID < "$TTY_DEV"
         read -r -p "Enter OpenAI API Key [optional, press Enter to skip]: " INPUT_AI_API_KEY < "$TTY_DEV"
         read -r -p "Enter SQLite Database Path [default: /var/lib/netmon/metrics.sql]: " INPUT_DB_PATH < "$TTY_DEV"
+        read -r -p "Enter Speedtest Interval (e.g. 3600, 1h, 30m) [default: 3600]: " INPUT_SPEEDTEST_INTERVAL < "$TTY_DEV"
     else
         read -r -p "Enter Telegram Bot Token (TG_BOT_TOKEN): " INPUT_TG_BOT_TOKEN
         read -r -p "Enter Telegram Chat ID (TG_CHAT_ID): " INPUT_TG_CHAT_ID
         read -r -p "Enter OpenAI API Key [optional, press Enter to skip]: " INPUT_AI_API_KEY
         read -r -p "Enter SQLite Database Path [default: /var/lib/netmon/metrics.sql]: " INPUT_DB_PATH
+        read -r -p "Enter Speedtest Interval (e.g. 3600, 1h, 30m) [default: 3600]: " INPUT_SPEEDTEST_INTERVAL
     fi
 
     DB_PATH="${INPUT_DB_PATH:-/var/lib/netmon/metrics.sql}"
@@ -226,6 +228,7 @@ AI_API_KEY=${INPUT_AI_API_KEY}
 AI_MODEL=gpt-4o-mini
 AI_BASE_URL=https://api.openai.com/v1
 DB_PATH=${DB_PATH}
+SPEEDTEST_INTERVAL=${INPUT_SPEEDTEST_INTERVAL:-3600}
 EOF
         sudo chmod 600 "$ENV_FILE"
     else
@@ -236,6 +239,7 @@ AI_API_KEY=${INPUT_AI_API_KEY}
 AI_MODEL=gpt-4o-mini
 AI_BASE_URL=https://api.openai.com/v1
 DB_PATH=${DB_PATH}
+SPEEDTEST_INTERVAL=${INPUT_SPEEDTEST_INTERVAL:-3600}
 EOF
         chmod 600 "$ENV_FILE"
     fi

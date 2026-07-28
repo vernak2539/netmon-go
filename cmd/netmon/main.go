@@ -73,13 +73,83 @@ func main() {
 		log.Println("AI API key not provided; AI report generation disabled.")
 	}
 
+	if cfg.TestReport {
+		log.Printf("Generating test report with graph via %s...", cfg.Notifier)
+		metrics, deviceCounts, err := database.GetMetricsWithDeviceCounts(ctx)
+		if err != nil {
+			log.Fatalf("Error getting metrics with device counts: %v", err)
+		}
+		if len(metrics) == 0 {
+			log.Fatalf("No speedtest metrics found in database (%s) to generate graph report.", cfg.DBPath)
+		}
+
+		var report string
+		if aiClient != nil {
+			var userMessage strings.Builder
+			for i, m := range metrics {
+				devCount := 0
+				if i < len(deviceCounts) {
+					devCount = deviceCounts[i]
+				}
+				userMessage.WriteString(fmt.Sprintf(
+					ReportUserItemFormat,
+					m.Timestamp.Local().Format("2006-01-02 15:04:05"),
+					m.Download,
+					m.Upload,
+					m.Ping,
+					m.Client,
+					m.Server,
+					float64(m.BytesReceived)/1000000.0,
+					float64(m.BytesSent)/1000000.0,
+					m.Share,
+					devCount,
+				))
+				userMessage.WriteString("\n")
+			}
+
+			_ = bot.SendChatAction(ctx, notifier.ChatActionTyping)
+			var aiErr error
+			report, aiErr = aiClient.SendMessage(ctx, userMessage.String(), ReportSystemPrompt)
+			if aiErr != nil {
+				log.Printf("AI report generation failed: %v, falling back to status message", aiErr)
+			} else {
+				report = cleanHTMLResponse(report)
+			}
+		}
+
+		if report == "" {
+			latestMetric := metrics[len(metrics)-1]
+			latestDeviceCount := deviceCounts[len(deviceCounts)-1]
+			report = formatMiniReport(&latestMetric, latestDeviceCount)
+		}
+
+		_ = bot.SendChatAction(ctx, notifier.ChatActionUploadPhoto)
+		graphPath, err := graphs.Plot(metrics, deviceCounts)
+		if err != nil {
+			log.Fatalf("Error plotting graph: %v", err)
+		}
+
+		photoBytes, err := os.ReadFile(graphPath)
+		if err != nil {
+			log.Fatalf("Error reading graph PNG: %v", err)
+		}
+
+		if err := bot.SendPhoto(ctx, photoBytes, report); err != nil {
+			log.Fatalf("Error sending photo to notifier: %v", err)
+		}
+		_ = os.Remove(graphPath)
+
+		log.Println("Test report with graph delivered successfully.")
+		os.Exit(0)
+	}
+
 	speedTester := speedtest.New()
 	deviceScanner := scanner.New()
 
 	log.Println("The bot has been started.")
 
 	counter := 0
-	ticker := time.NewTicker(3600 * time.Second)
+	ticker := time.NewTicker(cfg.SpeedtestInterval)
 	defer ticker.Stop()
 
 	runCycle := func() {

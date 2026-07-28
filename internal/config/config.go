@@ -21,12 +21,16 @@ type Config struct {
 	Notifier          string
 	DiscordWebhookURL string
 	RequestTimeout    time.Duration
+	SpeedtestInterval time.Duration
 	TestNotify        bool
+	TestReport        bool
 }
 
 var (
-	envFile    = flag.String("env", ".env", "Path to the .env file")
-	testNotify = flag.Bool("test-notify", false, "Send a test notification and exit")
+	envFile           = flag.String("env", ".env", "Path to the .env file")
+	testNotify        = flag.Bool("test-notify", false, "Send a test notification and exit")
+	testReport        = flag.Bool("test-report", false, "Send a full 24h test report with graph and exit")
+	speedtestInterval = flag.Duration("interval", 0, "Interval between speedtest cycles (e.g. 1h, 30m)")
 )
 
 // Load parses command line flags and loads the configuration from the environment/dotenv file.
@@ -62,6 +66,19 @@ func Load() (*Config, error) {
 		requestTimeout = time.Duration(sec) * time.Second
 	}
 
+	intervalVal := 1 * time.Hour
+	if *speedtestInterval > 0 {
+		intervalVal = *speedtestInterval
+	} else if rawInterval := strings.TrimSpace(os.Getenv("SPEEDTEST_INTERVAL")); rawInterval != "" {
+		if dur, err := time.ParseDuration(rawInterval); err == nil && dur > 0 {
+			intervalVal = dur
+		} else if sec, err := strconv.Atoi(rawInterval); err == nil && sec > 0 {
+			intervalVal = time.Duration(sec) * time.Second
+		} else {
+			return nil, fmt.Errorf("invalid SPEEDTEST_INTERVAL: %s", rawInterval)
+		}
+	}
+
 	cfg := &Config{
 		AIAPIKey:          os.Getenv("AI_API_KEY"),
 		AIModel:           os.Getenv("AI_MODEL"),
@@ -72,7 +89,9 @@ func Load() (*Config, error) {
 		Notifier:          notifier,
 		DiscordWebhookURL: os.Getenv("DISCORD_WEBHOOK_URL"),
 		RequestTimeout:    requestTimeout,
+		SpeedtestInterval: intervalVal,
 		TestNotify:        *testNotify,
+		TestReport:        *testReport,
 	}
 
 	if strings.TrimSpace(cfg.AIAPIKey) != "" {

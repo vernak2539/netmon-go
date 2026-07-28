@@ -110,6 +110,10 @@ make clean
 - Whenever adding or modifying environment variables (`internal/config`), CLI flags (`cmd/netmon`), system dependencies, or installation paths, **always inspect and update `scripts/setup.sh`**.
 - Ensure any new interactive configuration prompts or default values are kept in sync across `internal/config`, `.env.example`, `README.md`, and `scripts/setup.sh`.
 
+### Configuration & CLI Flags
+- **Environment Variables**: Managed via `.env` (e.g., `SPEEDTEST_INTERVAL` for configuring cycle delays).
+- **CLI Flags**: Used for one-off tasks and overrides (e.g., `-test-report` to generate a report immediately and exit).
+
 ---
 
 ## 5. Project Board Automation (GitHub Project #3)
