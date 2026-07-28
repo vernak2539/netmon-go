@@ -93,12 +93,20 @@ func main() {
 		_ = bot.SendChatAction(ctx, notifier.ChatActionTyping)
 
 		metric, err := speedTester.Run(ctx)
+		if ctx.Err() != nil {
+			log.Println("Context cancelled. Aborting speedtest cycle.")
+			return
+		}
 		if err != nil {
 			log.Printf("Error running speedtest: %v", err)
 			return
 		}
 
 		devices, err := deviceScanner.Scan(ctx)
+		if ctx.Err() != nil {
+			log.Println("Context cancelled. Aborting device scan.")
+			return
+		}
 		if err != nil {
 			log.Printf("Error running device scan: %v", err)
 			devices = []models.NetworkDevice{}

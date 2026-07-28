@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/vernak2539/netmon-go/internal/models"
+	"github.com/vernak2539/netmon-go/internal/speedtest"
 )
 
 func TestDetermineStatusText(t *testing.T) {
@@ -62,5 +64,19 @@ func TestCleanHTMLResponse(t *testing.T) {
 	result := cleanHTMLResponse(input)
 	if result != expected {
 		t.Errorf("expected %q, got %q", expected, result)
+	}
+}
+
+func TestContextCancellationHandling(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	runner := speedtest.New()
+	_, err := runner.Run(ctx)
+	if err == nil {
+		t.Errorf("expected error when running speedtest with cancelled context, got nil")
+	}
+	if ctx.Err() == nil {
+		t.Errorf("expected context error to be non-nil after cancellation")
 	}
 }
