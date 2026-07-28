@@ -114,9 +114,16 @@ if command -v nmap >/dev/null 2>&1; then
         if [ ! -f "$SUDOERS_FILE" ]; then
             info "Configuring passwordless sudo access for nmap ($SUDOERS_FILE)..."
             USER_NAME="$(whoami)"
-            echo "$USER_NAME ALL=(root) NOPASSWD: $NMAP_PATH" | sudo tee "$SUDOERS_FILE" >/dev/null
-            sudo chmod 440 "$SUDOERS_FILE"
-            success "Passwordless sudo configured for nmap."
+            TMP_SUDOERS="$(mktemp)"
+            echo "$USER_NAME ALL=(root) NOPASSWD: $NMAP_PATH" > "$TMP_SUDOERS"
+            if sudo visudo -cf "$TMP_SUDOERS" >/dev/null 2>&1; then
+                sudo cp "$TMP_SUDOERS" "$SUDOERS_FILE"
+                sudo chmod 440 "$SUDOERS_FILE"
+                success "Passwordless sudo configured for nmap."
+            else
+                warn "Sudoers syntax check failed. Skipping sudoers file creation."
+            fi
+            rm -f "$TMP_SUDOERS"
         fi
     fi
 else
@@ -128,8 +135,11 @@ fi
 # ------------------------------------------------------------------------------
 info "Fetching latest netmon-go release from GitHub..."
 
-LATEST_RELEASE_JSON="$(curl -sSL https://api.github.com/repos/vernak2539/netmon-go/releases/latest)"
-LATEST_TAG="$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')"
+LATEST_RELEASE_JSON="$(curl -sSLf https://api.github.com/repos/vernak2539/netmon-go/releases/latest || echo "")"
+LATEST_TAG=""
+if [ -n "$LATEST_RELEASE_JSON" ]; then
+    LATEST_TAG="$(echo "$LATEST_RELEASE_JSON" | grep '"tag_name":' | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')"
+fi
 
 if [ -z "$LATEST_TAG" ]; then
     warn "Could not fetch latest release tag via GitHub API. Defaulting to 'latest' download URL."
@@ -145,7 +155,9 @@ TARGET_BIN="${INSTALL_DIR}/netmon"
 info "Downloading binary from ${DOWNLOAD_URL}..."
 
 TMP_BIN="$(mktemp)"
-if curl -sSL -o "$TMP_BIN" "$DOWNLOAD_URL"; then
+trap 'rm -f "$TMP_BIN"' EXIT
+
+if curl -sSLf -o "$TMP_BIN" "$DOWNLOAD_URL"; then
     chmod +x "$TMP_BIN"
     if [ -w "$INSTALL_DIR" ]; then
         mv "$TMP_BIN" "$TARGET_BIN"
@@ -162,17 +174,26 @@ fi
 # ------------------------------------------------------------------------------
 # 4. Interactive Configuration (.env) Setup
 # ------------------------------------------------------------------------------
-CONFIG_DIR="/etc/netmon"
-ENV_FILE="${CONFIG_DIR}/.env"
-
-if [ ! -w "/etc" ]; then
-    ENV_FILE="./.env"
-    CONFIG_DIR="."
+# Resolve absolute paths for CONFIG_DIR and ENV_FILE
+if [ -w "/etc" ] || sudo -n true 2>/dev/null; then
+    CONFIG_DIR="/etc/netmon"
+    ENV_FILE="${CONFIG_DIR}/.env"
+else
+    CONFIG_DIR="$(pwd)"
+    ENV_FILE="${CONFIG_DIR}/.env"
 fi
 
 info "Configuring environment settings (${ENV_FILE})..."
 
-if [ -t 0 ]; then
+# Support terminal interactive prompts even when executed via curl | bash
+TTY_DEV=""
+if [ -c /dev/tty ]; then
+    TTY_DEV="/dev/tty"
+elif [ -t 0 ]; then
+    TTY_DEV=""
+fi
+
+if [ -n "$TTY_DEV" ] || [ -t 0 ]; then
 
     echo -e "\n${BOLD}Telegram Setup Instructions:${RESET}"
     echo "  - How to create a Telegram Bot:"
@@ -181,15 +202,22 @@ if [ -t 0 ]; then
     echo "    https://dev.to/marcotwzrd/how-to-get-a-telegram-chatid-in-2026-3-methods-that-actually-work-36g5"
     echo ""
 
-    read -r -p "Enter Telegram Bot Token (TG_BOT_TOKEN): " INPUT_TG_BOT_TOKEN
-    read -r -p "Enter Telegram Chat ID (TG_CHAT_ID): " INPUT_TG_CHAT_ID
-    read -r -p "Enter OpenAI API Key [optional, press Enter to skip]: " INPUT_AI_API_KEY
-    read -r -p "Enter SQLite Database Path [default: /var/lib/netmon/metrics.sql]: " INPUT_DB_PATH
+    if [ -n "$TTY_DEV" ]; then
+        read -r -p "Enter Telegram Bot Token (TG_BOT_TOKEN): " INPUT_TG_BOT_TOKEN < "$TTY_DEV"
+        read -r -p "Enter Telegram Chat ID (TG_CHAT_ID): " INPUT_TG_CHAT_ID < "$TTY_DEV"
+        read -r -p "Enter OpenAI API Key [optional, press Enter to skip]: " INPUT_AI_API_KEY < "$TTY_DEV"
+        read -r -p "Enter SQLite Database Path [default: /var/lib/netmon/metrics.sql]: " INPUT_DB_PATH < "$TTY_DEV"
+    else
+        read -r -p "Enter Telegram Bot Token (TG_BOT_TOKEN): " INPUT_TG_BOT_TOKEN
+        read -r -p "Enter Telegram Chat ID (TG_CHAT_ID): " INPUT_TG_CHAT_ID
+        read -r -p "Enter OpenAI API Key [optional, press Enter to skip]: " INPUT_AI_API_KEY
+        read -r -p "Enter SQLite Database Path [default: /var/lib/netmon/metrics.sql]: " INPUT_DB_PATH
+    fi
 
     DB_PATH="${INPUT_DB_PATH:-/var/lib/netmon/metrics.sql}"
     mkdir -p "$(dirname "$DB_PATH")" 2>/dev/null || true
 
-    if [ -n "$CONFIG_DIR" ] && [ "$CONFIG_DIR" != "." ]; then
+    if [ "$CONFIG_DIR" = "/etc/netmon" ]; then
         sudo mkdir -p "$CONFIG_DIR"
         sudo tee "$ENV_FILE" >/dev/null <<EOF
 TG_BOT_TOKEN=${INPUT_TG_BOT_TOKEN}
@@ -199,6 +227,7 @@ AI_MODEL=gpt-4o-mini
 AI_BASE_URL=https://api.openai.com/v1
 DB_PATH=${DB_PATH}
 EOF
+        sudo chmod 600 "$ENV_FILE"
     else
         cat <<EOF > "$ENV_FILE"
 TG_BOT_TOKEN=${INPUT_TG_BOT_TOKEN}
@@ -208,11 +237,12 @@ AI_MODEL=gpt-4o-mini
 AI_BASE_URL=https://api.openai.com/v1
 DB_PATH=${DB_PATH}
 EOF
+        chmod 600 "$ENV_FILE"
     fi
 
-    success "Environment configuration saved to ${ENV_FILE}"
+    success "Environment configuration saved securely to ${ENV_FILE}"
 else
-    warn "Non-interactive shell detected. Skipping interactive configuration."
+    warn "Non-interactive shell detected and no TTY available. Skipping interactive configuration."
     warn "Please ensure environment variables (TG_BOT_TOKEN, TG_CHAT_ID, etc.) or a .env file are configured."
 fi
 
