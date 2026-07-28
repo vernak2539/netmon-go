@@ -18,6 +18,9 @@ test:
 release:
 	@./scripts/release.sh $(VERSION)
 
+setup:
+	@./scripts/setup.sh
+
 db-inspect:
 	@./scripts/db-inspect.sh "$(DB_PATH)" "$(SCAN_ID)"
 

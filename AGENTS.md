@@ -86,6 +86,10 @@ make clean
 ### HTML Formatting & Telegram AI Prompts
 - AI responses sent to Telegram MUST NOT contain `<br>`, `<br/>`, or `<br />` tags. Use `cleanHTMLResponse()` to convert them to standard newlines.
 
+### Setup & Installer Script Maintenance (`scripts/setup.sh`)
+- Whenever adding or modifying environment variables (`internal/config`), CLI flags (`cmd/netmon`), system dependencies, or installation paths, **always inspect and update `scripts/setup.sh`**.
+- Ensure any new interactive configuration prompts or default values are kept in sync across `internal/config`, `.env.example`, `README.md`, and `scripts/setup.sh`.
+
 ---
 
 ## 5. Project Board Automation (GitHub Project #3)
