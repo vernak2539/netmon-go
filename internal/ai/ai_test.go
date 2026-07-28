@@ -12,9 +12,12 @@ import (
 
 func TestNewValidation(t *testing.T) {
 	t.Run("Empty API Key", func(t *testing.T) {
-		_, err := New("", "gpt-4", "http://localhost")
-		if err == nil {
-			t.Error("expected error for empty API key, got nil")
+		client, err := New("", "gpt-4", "http://localhost")
+		if err != nil {
+			t.Fatalf("expected nil error for empty API key, got: %v", err)
+		}
+		if client != nil {
+			t.Errorf("expected nil client for empty API key, got: %v", client)
 		}
 	})
 
@@ -41,6 +44,16 @@ func TestNewValidation(t *testing.T) {
 			t.Errorf("expected model gpt-4, got %s", client.model)
 		}
 	})
+}
+
+func TestNewEmptyAPIKey(t *testing.T) {
+	client, err := New("", "model", "http://localhost")
+	if err != nil {
+		t.Fatalf("expected nil error for empty API key, got: %v", err)
+	}
+	if client != nil {
+		t.Errorf("expected nil client for empty API key, got: %v", client)
+	}
 }
 
 func TestSendMessage(t *testing.T) {

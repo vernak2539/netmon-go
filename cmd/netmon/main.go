@@ -47,6 +47,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize AI client: %v", err)
 	}
+	if aiClient == nil {
+		log.Println("AI API key not provided; AI report generation disabled.")
+	}
 
 	speedTester := speedtest.New()
 	deviceScanner := scanner.New()
@@ -105,35 +108,47 @@ func main() {
 				return
 			}
 
-			var userMessage strings.Builder
-			for i, m := range metrics {
-				devCount := 0
-				if i < len(deviceCounts) {
-					devCount = deviceCounts[i]
+			var report string
+			if aiClient != nil {
+				var userMessage strings.Builder
+				for i, m := range metrics {
+					devCount := 0
+					if i < len(deviceCounts) {
+						devCount = deviceCounts[i]
+					}
+					userMessage.WriteString(fmt.Sprintf(
+						ReportUserItemFormat,
+						m.Timestamp.Format("2006-01-02 15:04:05"),
+						m.Download,
+						m.Upload,
+						m.Ping,
+						m.Client,
+						m.Server,
+						float64(m.BytesReceived)/1000000.0,
+						float64(m.BytesSent)/1000000.0,
+						m.Share,
+						devCount,
+					))
+					userMessage.WriteString("\n")
 				}
-				userMessage.WriteString(fmt.Sprintf(
-					ReportUserItemFormat,
-					m.Timestamp.Format("2006-01-02 15:04:05"),
-					m.Download,
-					m.Upload,
-					m.Ping,
-					m.Client,
-					m.Server,
-					float64(m.BytesReceived)/1000000.0,
-					float64(m.BytesSent)/1000000.0,
-					m.Share,
-					devCount,
-				))
-				userMessage.WriteString("\n")
+
+				_ = bot.SendChatAction(telegram.Typing)
+				var aiErr error
+				report, aiErr = aiClient.SendMessage(ctx, userMessage.String(), ReportSystemPrompt)
+				if aiErr != nil {
+					log.Printf("AI report generation failed: %v, falling back to status message", aiErr)
+				} else {
+					report = cleanHTMLResponse(report)
+				}
 			}
 
-			_ = bot.SendChatAction(telegram.Typing)
-			report, err := aiClient.SendMessage(ctx, userMessage.String(), ReportSystemPrompt)
-			if err != nil {
-				log.Printf("Error generating AI report: %v", err)
-				return
+			if report == "" {
+				if len(metrics) > 0 && len(deviceCounts) > 0 {
+					latestMetric := metrics[len(metrics)-1]
+					latestDeviceCount := deviceCounts[len(deviceCounts)-1]
+					report = formatMiniReport(&latestMetric, latestDeviceCount)
+				}
 			}
-			report = cleanHTMLResponse(report)
 
 			_ = bot.SendChatAction(telegram.UploadPhoto)
 			graphPath, err := graphs.Plot(metrics, deviceCounts)
@@ -152,6 +167,7 @@ func main() {
 				log.Printf("Error sending photo to Telegram: %v", err)
 				return
 			}
+			_ = os.Remove(graphPath)
 
 			log.Println("Detailed report has been sent.")
 			counter = 0

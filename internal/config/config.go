@@ -45,17 +45,17 @@ func Load() (*Config, error) {
 		DBPath:     os.Getenv("DB_PATH"),
 	}
 
-	if strings.TrimSpace(cfg.AIAPIKey) == "" {
-		return nil, fmt.Errorf("AI_API_KEY not found or empty in environment")
+	if strings.TrimSpace(cfg.AIAPIKey) != "" {
+		if strings.TrimSpace(cfg.AIModel) == "" {
+			return nil, fmt.Errorf("AI_MODEL not found or empty in environment when AI_API_KEY is set")
+		}
+		if strings.TrimSpace(cfg.AIBaseURL) == "" {
+			return nil, fmt.Errorf("AI_BASE_URL not found or empty in environment when AI_API_KEY is set")
+		}
 	}
+
 	if strings.TrimSpace(cfg.DBPath) == "" {
 		return nil, fmt.Errorf("DB_PATH not found or empty in environment")
-	}
-	if strings.TrimSpace(cfg.AIModel) == "" {
-		return nil, fmt.Errorf("AI_MODEL not found or empty in environment")
-	}
-	if strings.TrimSpace(cfg.AIBaseURL) == "" {
-		return nil, fmt.Errorf("AI_BASE_URL not found or empty in environment")
 	}
 	if strings.TrimSpace(cfg.TGBotToken) == "" {
 		return nil, fmt.Errorf("TG_BOT_TOKEN not found or empty in environment")
