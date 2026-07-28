@@ -19,7 +19,7 @@ release:
 	@./scripts/release.sh $(VERSION)
 
 db-inspect:
-	@./scripts/db-inspect.sh
+	@./scripts/db-inspect.sh "$(DB_PATH)" "$(SCAN_ID)"
 
 clean:
 	go clean
