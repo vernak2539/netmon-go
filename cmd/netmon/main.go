@@ -13,8 +13,10 @@ import (
 	"github.com/vernak2539/netmon-go/internal/ai"
 	"github.com/vernak2539/netmon-go/internal/config"
 	"github.com/vernak2539/netmon-go/internal/db"
+	"github.com/vernak2539/netmon-go/internal/discord"
 	"github.com/vernak2539/netmon-go/internal/graphs"
 	"github.com/vernak2539/netmon-go/internal/models"
+	"github.com/vernak2539/netmon-go/internal/notifier"
 	"github.com/vernak2539/netmon-go/internal/scanner"
 	"github.com/vernak2539/netmon-go/internal/speedtest"
 	"github.com/vernak2539/netmon-go/internal/telegram"
@@ -32,9 +34,19 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	bot, err := telegram.New(cfg.TGBotToken, cfg.TGChatID)
-	if err != nil {
-		log.Fatalf("Failed to initialize Telegram bot: %v", err)
+	var bot notifier.Notifier
+	if cfg.Notifier == "discord" {
+		var err error
+		bot, err = discord.New(cfg.DiscordWebhookURL, cfg.RequestTimeout)
+		if err != nil {
+			log.Fatalf("Failed to initialize Discord notifier: %v", err)
+		}
+	} else {
+		var err error
+		bot, err = telegram.New(cfg.TGBotToken, cfg.TGChatID, cfg.RequestTimeout)
+		if err != nil {
+			log.Fatalf("Failed to initialize Telegram bot: %v", err)
+		}
 	}
 
 	database, err := db.Open(cfg.DBPath)
@@ -61,8 +73,14 @@ func main() {
 	defer ticker.Stop()
 
 	runCycle := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Recovered from panic during speedtest cycle: %v", r)
+			}
+		}()
+
 		log.Println("Starting speedtest cycle...")
-		_ = bot.SendChatAction(ctx, telegram.Typing)
+		_ = bot.SendChatAction(ctx, notifier.ChatActionTyping)
 
 		metric, err := speedTester.Run(ctx)
 		if err != nil {
@@ -118,7 +136,7 @@ func main() {
 					}
 					userMessage.WriteString(fmt.Sprintf(
 						ReportUserItemFormat,
-						m.Timestamp.Format("2006-01-02 15:04:05"),
+						m.Timestamp.Local().Format("2006-01-02 15:04:05"),
 						m.Download,
 						m.Upload,
 						m.Ping,
@@ -132,7 +150,7 @@ func main() {
 					userMessage.WriteString("\n")
 				}
 
-				_ = bot.SendChatAction(ctx, telegram.Typing)
+				_ = bot.SendChatAction(ctx, notifier.ChatActionTyping)
 				var aiErr error
 				report, aiErr = aiClient.SendMessage(ctx, userMessage.String(), ReportSystemPrompt)
 				if aiErr != nil {
@@ -150,7 +168,7 @@ func main() {
 				}
 			}
 
-			_ = bot.SendChatAction(ctx, telegram.UploadPhoto)
+			_ = bot.SendChatAction(ctx, notifier.ChatActionUploadPhoto)
 			graphPath, err := graphs.Plot(metrics, deviceCounts)
 			if err != nil {
 				log.Printf("Error plotting graph: %v", err)
@@ -164,7 +182,7 @@ func main() {
 			}
 
 			if err := bot.SendPhoto(ctx, photoBytes, report); err != nil {
-				log.Printf("Error sending photo to Telegram: %v", err)
+				log.Printf("Error sending photo to notifier: %v", err)
 				return
 			}
 			_ = os.Remove(graphPath)

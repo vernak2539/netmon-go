@@ -1,7 +1,11 @@
 package main
 
 import (
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/vernak2539/netmon-go/internal/models"
 )
 
 func TestDetermineStatusText(t *testing.T) {
@@ -30,4 +34,33 @@ func TestDetermineStatusText(t *testing.T) {
 			t.Errorf("expected 'At least it works, I guess', got %s", status)
 		}
 	})
+}
+
+func TestFormatMiniReport(t *testing.T) {
+	utcTime := time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC)
+	m := &models.NetworkMetric{
+		Timestamp:     utcTime,
+		Client:        "TestClient",
+		Server:        "TestServer",
+		Download:      200.0,
+		Upload:        50.0,
+		Ping:          10.0,
+		BytesReceived: 10000000,
+		BytesSent:     5000000,
+	}
+
+	report := formatMiniReport(m, 3)
+	expectedTimeStr := utcTime.Local().Format("2006-01-02 15:04:05")
+	if !strings.Contains(report, expectedTimeStr) {
+		t.Errorf("expected mini report to contain local time string %s, got report: %s", expectedTimeStr, report)
+	}
+}
+
+func TestCleanHTMLResponse(t *testing.T) {
+	input := "Line 1<br>Line 2<br/>Line 3<br />Line 4"
+	expected := "Line 1\nLine 2\nLine 3\nLine 4"
+	result := cleanHTMLResponse(input)
+	if result != expected {
+		t.Errorf("expected %q, got %q", expected, result)
+	}
 }

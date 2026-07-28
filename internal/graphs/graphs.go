@@ -27,7 +27,7 @@ func Plot(metrics []models.NetworkMetric, deviceCounts []int) (string, error) {
 	devices := make([]float64, len(metrics))
 
 	for i, m := range metrics {
-		xValues[i] = m.Timestamp
+		xValues[i] = m.Timestamp.Local()
 		downloads[i] = m.Download
 		uploads[i] = m.Upload
 		pings[i] = m.Ping
@@ -52,8 +52,16 @@ func Plot(metrics []models.NetworkMetric, deviceCounts []int) (string, error) {
 			FontColor: drawing.ColorBlack,
 		},
 		XAxis: chart.XAxis{
-			Name:           "Time",
-			ValueFormatter: chart.TimeValueFormatterWithFormat("02-01 15:04"),
+			Name: "Time",
+			ValueFormatter: func(v interface{}) string {
+				if typed, isTyped := v.(time.Time); isTyped {
+					return typed.Local().Format("02-01 15:04")
+				}
+				if typed, isTyped := v.(float64); isTyped {
+					return time.Unix(0, int64(typed)).Local().Format("02-01 15:04")
+				}
+				return fmt.Sprintf("%v", v)
+			},
 			GridMajorStyle: gridStyle,
 			Style: chart.Style{
 				StrokeColor: grayColor,

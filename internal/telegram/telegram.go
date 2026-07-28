@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/vernak2539/netmon-go/internal/notifier"
 )
@@ -21,8 +22,9 @@ const (
 )
 
 type Bot struct {
-	botToken string
-	chatID   string
+	botToken   string
+	chatID     string
+	httpClient *http.Client
 }
 
 type Client = Bot
@@ -30,17 +32,29 @@ type Client = Bot
 var _ notifier.Notifier = (*Client)(nil)
 
 // New creates a new Telegram Bot client.
-func New(botToken, chatID string) (*Bot, error) {
+func New(botToken, chatID string, timeouts ...time.Duration) (*Bot, error) {
 	if strings.TrimSpace(botToken) == "" {
 		return nil, fmt.Errorf("bot token cannot be empty")
 	}
 	if strings.TrimSpace(chatID) == "" {
 		return nil, fmt.Errorf("chat ID cannot be empty")
 	}
+	client := http.DefaultClient
+	if len(timeouts) > 0 && timeouts[0] > 0 {
+		client = &http.Client{Timeout: timeouts[0]}
+	}
 	return &Bot{
-		botToken: botToken,
-		chatID:   chatID,
+		botToken:   botToken,
+		chatID:     chatID,
+		httpClient: client,
 	}, nil
+}
+
+func (b *Bot) getHTTPClient() *http.Client {
+	if b.httpClient != nil {
+		return b.httpClient
+	}
+	return http.DefaultClient
 }
 
 // SendMessage sends a text message with HTML parse mode to the configured chat.
@@ -57,7 +71,7 @@ func (b *Bot) SendMessage(ctx context.Context, message string) error {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := b.getHTTPClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("sending request: %w", err)
 	}
@@ -108,7 +122,7 @@ func (b *Bot) SendPhoto(ctx context.Context, photo []byte, caption string) error
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := b.getHTTPClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("sending request: %w", err)
 	}
@@ -135,7 +149,7 @@ func (b *Bot) SendChatAction(ctx context.Context, action notifier.ChatAction) er
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := b.getHTTPClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("sending request: %w", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/vernak2539/netmon-go/internal/notifier"
 )
@@ -21,13 +22,17 @@ type Client struct {
 var _ notifier.Notifier = (*Client)(nil)
 
 // New creates a new Discord webhook client.
-func New(webhookURL string) (*Client, error) {
+func New(webhookURL string, timeouts ...time.Duration) (*Client, error) {
 	if strings.TrimSpace(webhookURL) == "" {
 		return nil, fmt.Errorf("webhook URL cannot be empty")
 	}
+	client := &http.Client{}
+	if len(timeouts) > 0 && timeouts[0] > 0 {
+		client.Timeout = timeouts[0]
+	}
 	return &Client{
 		webhookURL: webhookURL,
-		httpClient: http.DefaultClient,
+		httpClient: client,
 	}, nil
 }
 
