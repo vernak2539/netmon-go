@@ -26,6 +26,24 @@ func TestLoad(t *testing.T) {
 		}
 	})
 
+	t.Run("Valid loading without AI_API_KEY", func(t *testing.T) {
+		cleanup()
+		os.Setenv("TG_BOT_TOKEN", "test-token")
+		os.Setenv("TG_CHAT_ID", "test-chat")
+		os.Setenv("DB_PATH", "test.db")
+
+		*envFile = ".env"
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("unexpected error when AI_API_KEY is omitted: %v", err)
+		}
+
+		if cfg.AIAPIKey != "" {
+			t.Errorf("expected empty AIAPIKey, got %s", cfg.AIAPIKey)
+		}
+	})
+
 	t.Run("Valid loading from environment", func(t *testing.T) {
 		cleanup()
 		os.Setenv("AI_API_KEY", "test-key")
