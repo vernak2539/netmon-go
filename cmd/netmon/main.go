@@ -62,7 +62,7 @@ func main() {
 
 	runCycle := func() {
 		log.Println("Starting speedtest cycle...")
-		_ = bot.SendChatAction(telegram.Typing)
+		_ = bot.SendChatAction(ctx, telegram.Typing)
 
 		metric, err := speedTester.Run(ctx)
 		if err != nil {
@@ -132,7 +132,7 @@ func main() {
 					userMessage.WriteString("\n")
 				}
 
-				_ = bot.SendChatAction(telegram.Typing)
+				_ = bot.SendChatAction(ctx, telegram.Typing)
 				var aiErr error
 				report, aiErr = aiClient.SendMessage(ctx, userMessage.String(), ReportSystemPrompt)
 				if aiErr != nil {
@@ -150,7 +150,7 @@ func main() {
 				}
 			}
 
-			_ = bot.SendChatAction(telegram.UploadPhoto)
+			_ = bot.SendChatAction(ctx, telegram.UploadPhoto)
 			graphPath, err := graphs.Plot(metrics, deviceCounts)
 			if err != nil {
 				log.Printf("Error plotting graph: %v", err)
@@ -163,7 +163,7 @@ func main() {
 				return
 			}
 
-			if err := bot.SendPhoto(photoBytes, report); err != nil {
+			if err := bot.SendPhoto(ctx, photoBytes, report); err != nil {
 				log.Printf("Error sending photo to Telegram: %v", err)
 				return
 			}
@@ -173,7 +173,7 @@ func main() {
 			counter = 0
 		} else {
 			miniReport := formatMiniReport(metric, len(devices))
-			if err := bot.SendMessage(miniReport); err != nil {
+			if err := bot.SendMessage(ctx, miniReport); err != nil {
 				log.Printf("Error sending mini report: %v", err)
 			} else {
 				log.Println("Mini report has been sent.")
