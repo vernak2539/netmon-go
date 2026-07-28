@@ -26,17 +26,19 @@ netmon-go/
 ├── cmd/
 │   └── netmon/         # Main entrypoint, prompts (prompts.go), report formatters (reports.go), main loop (main.go)
 ├── internal/
-│   ├── ai/             # OpenAI API client (go-openai wrapper with custom BaseURL)
+│   ├── ai/             # LLM client (go-openai wrapper, optional — returns nil when unconfigured)
 │   ├── config/         # Environment configuration loading & validation (.env support)
 │   ├── db/             # SQLite persistence layer (modernc.org/sqlite, zero CGO)
+│   ├── discord/        # Discord webhook notifier (implements notifier.Notifier)
 │   ├── graphs/         # Dual Y-axis PNG chart rendering (go-chart/v2)
 │   ├── models/         # Domain models (NetworkMetric, NetworkDevice, SpeedTest with UUIDv7)
+│   ├── notifier/       # Core Notifier interface (SendMessage, SendPhoto, SendChatAction)
 │   ├── runner/         # Composite facade orchestrating speedtest and scanner
 │   ├── scanner/        # LAN device scanning via nmap ARP discovery
-│   ├── speedtest/      # Multi-threaded speed tests via showwin/speedtest-go
+│   ├── speedtest/      # Speed tests via showwin/speedtest-go
 │   └── telegram/       # Telegram Bot API client (pure stdlib http, multipart photo uploads)
 ├── docs/               # Architecture docs & implementation plans
-├── scripts/            # Release & helper scripts (release.sh)
+├── scripts/            # Setup, release & DB inspection scripts
 ├── .github/workflows/  # CI/CD workflows (ci.yml, release.yml)
 ├── Makefile            # Standard build targets (build, lint, test, release, clean)
 └── AGENTS.md           # This agent guide
@@ -85,6 +87,24 @@ make clean
 
 ### HTML Formatting & Telegram AI Prompts
 - AI responses sent to Telegram MUST NOT contain `<br>`, `<br/>`, or `<br />` tags. Use `cleanHTMLResponse()` to convert them to standard newlines.
+
+### Optional AI Client (nil-check pattern)
+- `ai.New()` returns `(nil, nil)` when the API key is empty — AI features are optional.
+- Callers **MUST** nil-check the AI client before calling `SendMessage()`. Skipping this causes nil-pointer panics.
+- When AI is disabled, the main loop falls back to mini status reports instead of LLM-generated analysis.
+
+### No Database Migration System
+- Schema is created via `CREATE TABLE IF NOT EXISTS` — there is no migration framework.
+- When adding columns or tables, you must handle existing databases that won't have the new schema (e.g., `ALTER TABLE ... ADD COLUMN` with error handling for the column-already-exists case).
+- There is no rollback mechanism.
+
+### Scanner Requires `sudo -n nmap`
+- The scanner runs `sudo -n nmap -sn -oX - <subnet>` — non-interactive sudo.
+- `scripts/setup.sh` configures `/etc/sudoers.d/netmon-nmap` for passwordless nmap. Without this, the scan silently fails (non-fatal; the main loop falls back to an empty device list).
+
+### Graph Files Are Temporary
+- `graphs.Plot()` writes a PNG to the `graphs/` directory and returns the file path.
+- After sending the graph via the notifier, the caller **must** clean up with `os.Remove(graphPath)`. Forgetting this leaks files on disk.
 
 ### Setup & Installer Script Maintenance (`scripts/setup.sh`)
 - Whenever adding or modifying environment variables (`internal/config`), CLI flags (`cmd/netmon`), system dependencies, or installation paths, **always inspect and update `scripts/setup.sh`**.
