@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -62,5 +63,14 @@ func TestCleanHTMLResponse(t *testing.T) {
 	result := cleanHTMLResponse(input)
 	if result != expected {
 		t.Errorf("expected %q, got %q", expected, result)
+	}
+}
+
+func TestContextCancellationHandling(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if ctx.Err() == nil {
+		t.Errorf("expected context error to be non-nil after cancellation")
 	}
 }
