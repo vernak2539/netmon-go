@@ -18,9 +18,9 @@ if command -v sqlite3 >/dev/null 2>&1; then
         round(m.download / 1000000.0, 2) AS dl_mbps, 
         round(m.upload / 1000000.0, 2) AS ul_mbps, 
         m.ping, 
-        st.device_scan_id
-    FROM speed_tests st
-    JOIN network_metrics m ON st.metric_id = m.id
+        st.device_scans_id AS device_scan_id
+    FROM speedtest st
+    JOIN metrics m ON st.metrics_id = m.id
     ORDER BY m.timestamp DESC 
     LIMIT 10;
     "
