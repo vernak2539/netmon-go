@@ -46,6 +46,12 @@ func Plot(metrics []models.NetworkMetric, deviceCounts []int) (string, error) {
 	}
 
 	graph := chart.Chart{
+		Background: chart.Style{
+			Padding: chart.Box{
+				Top:  20,
+				Left: 20,
+			},
+		},
 		Title: "Network Speed Test Results",
 		TitleStyle: chart.Style{
 			FontSize:  14,
