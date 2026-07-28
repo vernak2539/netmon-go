@@ -214,4 +214,24 @@ DB_PATH=file.db
 			t.Errorf("expected file.db, got %s", cfg.DBPath)
 		}
 	})
+
+	t.Run("Valid loading with -test-notify flag", func(t *testing.T) {
+		cleanup()
+		os.Setenv("TG_BOT_TOKEN", "test-token")
+		os.Setenv("TG_CHAT_ID", "test-chat")
+		// Note DB_PATH is omitted to test bypass when TestNotify is set
+
+		*envFile = ".env"
+		*testNotify = true
+		defer func() { *testNotify = false }()
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("unexpected error when test-notify is set: %v", err)
+		}
+
+		if !cfg.TestNotify {
+			t.Errorf("expected TestNotify to be true, got false")
+		}
+	})
 }

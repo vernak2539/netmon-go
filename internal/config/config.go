@@ -21,9 +21,13 @@ type Config struct {
 	Notifier          string
 	DiscordWebhookURL string
 	RequestTimeout    time.Duration
+	TestNotify        bool
 }
 
-var envFile = flag.String("env", ".env", "Path to the .env file")
+var (
+	envFile    = flag.String("env", ".env", "Path to the .env file")
+	testNotify = flag.Bool("test-notify", false, "Send a test notification and exit")
+)
 
 // Load parses command line flags and loads the configuration from the environment/dotenv file.
 func Load() (*Config, error) {
@@ -68,6 +72,7 @@ func Load() (*Config, error) {
 		Notifier:          notifier,
 		DiscordWebhookURL: os.Getenv("DISCORD_WEBHOOK_URL"),
 		RequestTimeout:    requestTimeout,
+		TestNotify:        *testNotify,
 	}
 
 	if strings.TrimSpace(cfg.AIAPIKey) != "" {
@@ -79,7 +84,7 @@ func Load() (*Config, error) {
 		}
 	}
 
-	if strings.TrimSpace(cfg.DBPath) == "" {
+	if !cfg.TestNotify && strings.TrimSpace(cfg.DBPath) == "" {
 		return nil, fmt.Errorf("DB_PATH not found or empty in environment")
 	}
 
