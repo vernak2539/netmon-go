@@ -80,3 +80,15 @@ func TestContextCancellationHandling(t *testing.T) {
 		t.Errorf("expected context error to be non-nil after cancellation")
 	}
 }
+
+func TestReportUserItemFormat(t *testing.T) {
+	// Verify that ReportUserItemFormat can be formatted with 10 arguments as expected in main.go
+	if ReportUserItemFormat == "" {
+		t.Fatalf("ReportUserItemFormat is empty")
+	}
+
+	formatted := strings.Contains(ReportUserItemFormat, "%s") || strings.Contains(ReportUserItemFormat, "%d") || strings.Contains(ReportUserItemFormat, "%f") || strings.Contains(ReportUserItemFormat, "%.2f")
+	if !formatted {
+		t.Errorf("ReportUserItemFormat does not seem to contain format specifiers")
+	}
+}

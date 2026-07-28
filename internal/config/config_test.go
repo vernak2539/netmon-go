@@ -19,6 +19,7 @@ func TestLoad(t *testing.T) {
 		os.Unsetenv("NOTIFIER")
 		os.Unsetenv("DISCORD_WEBHOOK_URL")
 		os.Unsetenv("REQUEST_TIMEOUT")
+		os.Unsetenv("SPEEDTEST_INTERVAL")
 	}
 	defer cleanup()
 
@@ -232,6 +233,112 @@ DB_PATH=file.db
 
 		if !cfg.TestNotify {
 			t.Errorf("expected TestNotify to be true, got false")
+		}
+	})
+
+	t.Run("-test-report flag parsing", func(t *testing.T) {
+		cleanup()
+		os.Setenv("TG_BOT_TOKEN", "test-token")
+		os.Setenv("TG_CHAT_ID", "test-chat")
+		os.Setenv("DB_PATH", "test.db")
+
+		*envFile = ".env"
+		*testReport = true
+		defer func() { *testReport = false }()
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !cfg.TestReport {
+			t.Errorf("expected TestReport to be true")
+		}
+	})
+
+	t.Run("-interval flag parsing", func(t *testing.T) {
+		cleanup()
+		os.Setenv("TG_BOT_TOKEN", "test-token")
+		os.Setenv("TG_CHAT_ID", "test-chat")
+		os.Setenv("DB_PATH", "test.db")
+
+		*envFile = ".env"
+		*speedtestInterval = 15 * time.Minute
+		defer func() { *speedtestInterval = 0 }()
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.SpeedtestInterval != 15*time.Minute {
+			t.Errorf("expected SpeedtestInterval to be 15m, got %v", cfg.SpeedtestInterval)
+		}
+	})
+
+	t.Run("SPEEDTEST_INTERVAL env var parsing duration string", func(t *testing.T) {
+		cleanup()
+		os.Setenv("TG_BOT_TOKEN", "test-token")
+		os.Setenv("TG_CHAT_ID", "test-chat")
+		os.Setenv("DB_PATH", "test.db")
+		os.Setenv("SPEEDTEST_INTERVAL", "30m")
+
+		*envFile = ".env"
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.SpeedtestInterval != 30*time.Minute {
+			t.Errorf("expected SpeedtestInterval to be 30m, got %v", cfg.SpeedtestInterval)
+		}
+	})
+
+	t.Run("SPEEDTEST_INTERVAL env var parsing int seconds", func(t *testing.T) {
+		cleanup()
+		os.Setenv("TG_BOT_TOKEN", "test-token")
+		os.Setenv("TG_CHAT_ID", "test-chat")
+		os.Setenv("DB_PATH", "test.db")
+		os.Setenv("SPEEDTEST_INTERVAL", "1800")
+
+		*envFile = ".env"
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.SpeedtestInterval != 30*time.Minute {
+			t.Errorf("expected SpeedtestInterval to be 30m, got %v", cfg.SpeedtestInterval)
+		}
+	})
+
+	t.Run("Default SpeedtestInterval", func(t *testing.T) {
+		cleanup()
+		os.Setenv("TG_BOT_TOKEN", "test-token")
+		os.Setenv("TG_CHAT_ID", "test-chat")
+		os.Setenv("DB_PATH", "test.db")
+
+		*envFile = ".env"
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.SpeedtestInterval != 1*time.Hour {
+			t.Errorf("expected default SpeedtestInterval to be 1h, got %v", cfg.SpeedtestInterval)
+		}
+	})
+
+	t.Run("Invalid SPEEDTEST_INTERVAL error", func(t *testing.T) {
+		cleanup()
+		os.Setenv("TG_BOT_TOKEN", "test-token")
+		os.Setenv("TG_CHAT_ID", "test-chat")
+		os.Setenv("DB_PATH", "test.db")
+		os.Setenv("SPEEDTEST_INTERVAL", "invalid")
+
+		*envFile = ".env"
+
+		_, err := Load()
+		if err == nil {
+			t.Error("expected error for invalid SPEEDTEST_INTERVAL")
 		}
 	})
 }
