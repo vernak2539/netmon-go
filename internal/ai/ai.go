@@ -16,7 +16,7 @@ type Client struct {
 // New initializes an OpenAI-compatible client.
 func New(apiKey, model, baseURL string) (*Client, error) {
 	if strings.TrimSpace(apiKey) == "" {
-		return nil, fmt.Errorf("api_key cannot be empty")
+		return nil, nil
 	}
 	if strings.TrimSpace(model) == "" {
 		return nil, fmt.Errorf("model cannot be empty")
